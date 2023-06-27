@@ -22,7 +22,7 @@ def load_lottieurl(url):
         return None
     return r.json()
 
-def detectImage(image, imgsz, stride, pt, model, option):
+def detectImage(image, imgsz, stride, pt, model, conf_index, iou_index, option):
     imageName = image.name
     image = Image.open(image)
     image=image.convert('RGB')
@@ -39,8 +39,8 @@ def detectImage(image, imgsz, stride, pt, model, option):
         if len(im.shape) == 3:
             im = im[None]
         pred = model(im)
-        conf_thres, iou_thres = 0.25,0.25
-        pred = non_max_suppression(pred,conf_thres, iou_thres)
+        # conf_thres, iou_thres = 0.25,0.25
+        pred = non_max_suppression(pred,conf_index, iou_index)
     p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
     for i, det in enumerate(pred):
         if len(det):
@@ -79,7 +79,7 @@ def detectImage(image, imgsz, stride, pt, model, option):
         st.image(img)
     
  
-def detectVideo(video, imgsz, stride, pt, model, result, option):
+def detectVideo(video, imgsz, stride, pt, model, result, conf_index, iou_index, option):
     videoName = video.name
     tfile = tempfile.NamedTemporaryFile(delete=False)
     tfile.write(video.read())
@@ -110,8 +110,8 @@ def detectVideo(video, imgsz, stride, pt, model, result, option):
                 if len(im.shape) == 3:
                     im = im[None]
                 pred = model(im)
-                conf_thres, iou_thres = 0.25, 0.25
-                pred = non_max_suppression(pred,conf_thres, iou_thres)
+                # conf_thres, iou_thres = conf_index, iou_index
+                pred = non_max_suppression(pred,conf_index, iou_index)
             p, im0, frame = path, im0s.copy(), getattr(dataset, 'frame', 0)
             for i, det in enumerate(pred):
                 if len(det):
@@ -189,7 +189,7 @@ def main():
         
     device = select_device("cpu")
     with st.spinner("Veuillez patienter quelques instants..."):
-        model = DetectMultiBackend("./runs/train/yolov5s_results11/weights/best.pt")
+        model = DetectMultiBackend("./runs/train/yolov5s_results3/weights/best.pt")
     stride, names, pt = model.stride, model.names, model.pt
     imgsz=(640, 640)
     imgsz = check_img_size(imgsz, s=stride)  # check image size
@@ -206,7 +206,7 @@ def main():
             st.write("Email: oualid.aitaissa@gmail.com")
             st.write("LinkedIn: https://www.linkedin.com/in/oualid-ait-aissa-914643239")
         
-    with st.expander("DESCRIPTION DE L'OUTIL", expanded=False):
+    with st.expander("Description de l'outil", expanded=False):
         st.info("DESCRIPTION: Le projet vise à développer un système de détection des panneaux de signalisation au Maroc en utilisant le modèle pré-entraîné YOLOv5. L'objectif principal est d'obtenir une précision élevée dans la détection et la reconnaissance des panneaux de signalisation sur les routes. Ce système permettra d'améliorer la sécurité routière en identifiant de manière précise et fiable les panneaux de signalisation.")
         st.info("BASE DE DONNEES: Le modèle est entraîné en utilisant un vaste ensemble d'images annotées représentant différents types de panneaux de signalisation routière, accompagnées d'informations de localisation correspondantes. En analysant ces images étiquetées, le modèle acquiert la capacité de reconnaître les caractéristiques visuelles spécifiques des panneaux de signalisation et d'appliquer ces connaissances pour détecter de nouveaux panneaux dans des images inédites. Ce processus d'entraînement permet au modèle de devenir compétent dans la reconnaissance précise des différents types de panneaux de signalisation, ce qui contribue grandement à l'efficacité globale du projet.")
         st.info("UTILISATION: Notre projet utilise ce modèle pour détecter les panneaux de signalisation routière dans des images ou des vidéos. Il affiche des encadrés autour des panneaux détectés, fournissant ainsi une indication visuelle claire de leur emplacement.")
@@ -220,32 +220,32 @@ def main():
         icons=["image-fill", "camera-video-fill"],
         orientation="horizontal",
     )
-    if selected == "Détection à partir d'images":
-        image = st.file_uploader("Sélectionnez une image", type=['jpg', 'png', 'jpeg'])
+    if selected == "Detection des Images":
+        image = st.file_uploader("Upload image")
         if image:
             left, right = st.columns(2)
             with left:
                 st.image(image,width=400)
             with right:
-                # conf_threshold = st.slider("Confidence Index", 0.0, 1.0, 0.25, 0.01)
-                # iou_threshold = st.slider("IOU Index", 0.0, 1.0, 0.45, 0.01)
+                conf_threshold = st.slider("Confidence Index", 0.0, 1.0, 0.25, 0.01)
+                iou_threshold = st.slider("IOU Index", 0.0, 1.0, 0.45, 0.01)
                 option = st.radio('Voulez-vous enregistrer les images des panneaux de signalisation ?', ['Oui', 'Non'])
                 st.info("Le chemin d'enregistrement est:   yolov5/media/ts")
             with st.spinner("Veuillez patienter quelques instants..."):
                 if st.button('Submit'):
                     # result = st.empty()
-                    detectImage(image, imgsz, stride, pt, model, option)
+                    detectImage(image, imgsz, stride, pt, model, conf_threshold, iou_threshold, option)
         # else:
         #     st.markdown(f'<h1 style="color:#ff0000;font-size:24px;">{"First, you need to upload an image"}</h1>', unsafe_allow_html=True)
                     
-    elif selected == "Détection à partir de Vidéos":
+    elif selected == "Detection des Videos":
         video = st.file_uploader("Sélectionnez une vidéo", type=['mp4', 'mov'])
         with st.spinner("Veuillez patienter quelques instants..."):
             if video:    
                 left, right = st.columns(2)
                 with right:
-                    # conf_threshold = st.slider("Confidence Index", 0.0, 1.0, 0.25, 0.01)
-                    # iou_threshold = st.slider("IOU Index", 0.0, 1.0, 0.45, 0.01)
+                    conf_threshold = st.slider("Confidence Index", 0.0, 1.0, 0.25, 0.01)
+                    iou_threshold = st.slider("IOU Index", 0.0, 1.0, 0.45, 0.01)
                     option = st.radio('Voulez-vous enregistrer les images des panneaux de signalisation ?', ['Oui', 'Non'])
                     st.info("Le chemin d'enregistrement est: yolov5/media/frame")
                 with left:
@@ -254,7 +254,7 @@ def main():
                     col = st.columns(3)
                     with col[1]:
                         result = st.empty()
-                        detectVideo(video, imgsz, stride, pt, model, result, option)                         
+                        detectVideo(video, imgsz, stride, pt, model, result, conf_threshold, iou_threshold, option)                         
                         
     if st.button("Afficher les photo du panneaux de signalisation"):
         with st.expander("TRAFFIC SIGNS"):
@@ -271,17 +271,17 @@ def main():
             
         a, b = st.columns(2)
         with a:
-            st.image("./runs/train/yolov5s_results11/confusion_matrix.png",caption="Matrice de Confusion")
-            st.image("./runs/train/yolov5s_results11/R_curve.png")
+            st.image("./runs/train/yolov5s_results3/confusion_matrix.png",caption="Matrice de Confusion")
+            st.image("./runs/train/yolov5s_results3/R_curve.png")
             st.write("Ce graphe montre la variation du rappel (Recall) en fonction de la confiance. Il permet de quantifier la capacité du modèle à trouver tous les exemples positifs présents dans les données.")
             st.info("À mesure que la confiance augmente, moins de prédictions sont faites, ce qui entraîne une précision plus élevée mais éventuellement un rappel (Recall) plus faible. ")
             # st.divider()
-            # st.image("./runs/train/yolov5s_results11/PR_curve.png")
+            # st.image("./runs/train/yolov5s_results3/PR_curve.png")
         with b:
-            st.image("./runs/train/yolov5s_results11/P_curve.png")
+            st.image("./runs/train/yolov5s_results3/P_curve.png")
             st.write("Ce graphe montre la variation du precision en fonction de la confaiance pour évaluer les performances du modèle à différents seuils de confiance.")
             st.divider()
-            st.image("./runs/train/yolov5s_results11/F1_curve.png")
+            st.image("./runs/train/yolov5s_results3/F1_curve.png")
             st.write("Ce graphe montre la variation du F1-score en fonction de la confiance pour évaluer les performances d'un modèle de détection d'objets à différents seuils de confiance.")
             st.info("Ce graphe indique que le modèle de détection d'objets est relativement performant dans la tâche à laquelle il est confronté [presque 80%].")
         
